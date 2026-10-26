@@ -1,5 +1,5 @@
-﻿# claude-notify hook entry point (Stop / Notification).
-# User settings live in %USERPROFILE%\.claude\claude-notify\ so they survive plugin updates.
+﻿# notify-card hook entry point (Stop / Notification).
+# User settings live in %USERPROFILE%\.claude\notify-card\ so they survive plugin updates.
 try {
     $event = 'Stop'; $project = ''; $hookMessage = ''; $cwd = ''; $transcript = ''
     try {
@@ -17,7 +17,7 @@ try {
     if (-not $defaults.ContainsKey($event)) { $event = 'Stop' }
 
     # First run: create the user folder with an editable config and an empty sounds folder.
-    $userDir = Join-Path $env:USERPROFILE '.claude\claude-notify'
+    $userDir = Join-Path $env:USERPROFILE '.claude\notify-card'
     $configPath = Join-Path $userDir 'config.json'
     if (-not (Test-Path $configPath)) {
         New-Item -ItemType Directory -Force (Join-Path $userDir 'sounds') | Out-Null

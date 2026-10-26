@@ -1,4 +1,4 @@
-# claude-notify
+# notify-card
 
 Claude Code가 **답변을 끝냈을 때**나 **승인·입력을 기다릴 때** 원하는 소리와 함께 화면 중앙에 알림 카드를 띄워 주는 Windows용 플러그인입니다. 다른 창에서 일하고 있어도 Claude가 끝났는지 바로 알 수 있습니다.
 
@@ -48,7 +48,7 @@ Claude Code에서 아래 두 명령을 차례로 입력합니다.
 
 ```
 /plugin marketplace add sunghyuny/claude_notify
-/plugin install claude-notify@claude-notify
+/plugin install notify-card@notify-card
 ```
 
 설치가 끝나면 바로 동작합니다. 알림이 안 뜨면 Claude Code를 한 번 다시 시작해 주세요.
@@ -58,7 +58,7 @@ Claude Code에서 아래 두 명령을 차례로 입력합니다.
 처음 알림이 뜰 때 아래 폴더가 자동으로 만들어집니다.
 
 ```
-C:\Users\<사용자명>\.claude\claude-notify\
+C:\Users\<사용자명>\.claude\notify-card\
 ├─ config.json   문구와 소리 설정
 ├─ sounds\       내 소리 파일을 넣는 곳
 └─ cache\        링크로 받은 소리가 저장되는 곳 (자동)
@@ -161,7 +161,7 @@ C:\Users\<사용자명>\.claude\claude-notify\
 
 | 누가 | 파일 | 바꿀 수 있는 것 |
 |---|---|---|
-| **사용자** | `C:\Users\<사용자명>\.claude\claude-notify\config.json` | 알림 문구, 소리(파일 또는 링크), 수정 파일·보안 검사 켜고 끄기 |
+| **사용자** | `C:\Users\<사용자명>\.claude\notify-card\config.json` | 알림 문구, 소리(파일 또는 링크), 수정 파일·보안 검사 켜고 끄기 |
 | **코드를 고쳐 쓰는 사람** | `scripts/notify-popup.ps1` 맨 위 `Design` 블록 | 카드 크기·색·글꼴·위치, 자동으로 닫히는 시간 |
 
 ### 사용자: `config.json`
@@ -238,15 +238,15 @@ $Design = @{
 
 ## 끄기·업데이트·삭제
 
-`/plugin`을 입력해서 나오는 메뉴에서 `claude-notify`를 선택하면 끄기, 업데이트, 삭제를 할 수 있습니다.
+`/plugin`을 입력해서 나오는 메뉴에서 `notify-card`를 선택하면 끄기, 업데이트, 삭제를 할 수 있습니다.
 
-내 설정과 소리까지 지우려면 `C:\Users\<사용자명>\.claude\claude-notify\` 폴더도 지웁니다.
+내 설정과 소리까지 지우려면 `C:\Users\<사용자명>\.claude\notify-card\` 폴더도 지웁니다.
 
 ## 문제 해결
 
 | 증상 | 확인할 것 |
 |---|---|
-| 알림이 전혀 안 뜸 | `/plugin`에서 `claude-notify`가 켜져 있는지 확인하고 Claude Code를 다시 시작합니다. |
+| 알림이 전혀 안 뜸 | `/plugin`에서 `notify-card`가 켜져 있는지 확인하고 Claude Code를 다시 시작합니다. |
 | 알림이 두 번 뜸 | `settings.json`에 직접 등록한 알림 훅이 따로 있는지 확인하고 지웁니다. |
 | 카드는 뜨는데 소리가 안 남 | 윈도우 볼륨을 확인합니다. |
 | 내 소리 대신 기본 소리가 남 | 파일이면 `sound` 경로에 실제로 파일이 있는지 확인합니다. 링크면 브라우저에서 그 링크가 열리는지, 인터넷이 연결돼 있는지 확인합니다. |
