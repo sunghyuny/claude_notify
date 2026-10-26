@@ -1,0 +1,6 @@
+{
+  "name": "claude-notify",
+  "version": "1.0.0",
+  "description": "Windows: plays your own sound and shows a popup card when Claude finishes a response or is waiting for your approval/input.",
+  "keywords": ["notification", "sound", "popup", "windows", "hooks"]
+}

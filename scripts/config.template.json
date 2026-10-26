@@ -1,0 +1,10 @@
+{
+  "Stop": {
+    "message": "답변이 완료되었습니다",
+    "sound": "sounds/done.wav"
+  },
+  "Notification": {
+    "message": "Claude가 확인을 기다립니다",
+    "sound": "sounds/attention.wav"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-notify",
+  "owner": {
+    "name": "sunghyuny"
+  },
+  "plugins": [
+    {
+      "name": "claude-notify",
+      "description": "Windows: plays your own sound and shows a popup card when Claude finishes a response or is waiting for your approval/input.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
