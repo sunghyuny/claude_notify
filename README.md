@@ -31,7 +31,7 @@ Claude Code가 **답변을 끝냈을 때**나 **승인·입력을 기다릴 때*
 Claude Code에서 아래 두 명령을 차례로 입력합니다.
 
 ```
-/plugin marketplace add sunghyuny/claude-notify
+/plugin marketplace add sunghyuny/claude_notify
 /plugin install claude-notify@claude-notify
 ```
 
