@@ -1,5 +1,28 @@
 ﻿# Detached helper for notify.ps1: plays the sound and shows a light card popup.
 param([string]$Payload)
+
+# ===== Design settings: edit these to change how the card looks =====
+$Design = @{
+    Width             = 380            # card width (px at 100% scaling)
+    Padding           = 22             # inner margin
+    CornerRadius      = 14
+    Position          = 'Center'       # Center | TopCenter | BottomRight
+    AutoCloseSeconds  = 0              # 0 = stay until closed
+    Title             = 'Claude Code'
+    Background        = '#FFFFFF'
+    TextColor         = '#111827'
+    SubTextColor      = '#6B7280'
+    BorderColor       = '#E5E7EB'
+    StopColor         = '#22C55E'      # dot color: response finished
+    NotificationColor = '#F59E0B'      # dot color: waiting for approval/input
+    TitleFont         = 'Segoe UI Semibold'
+    TitleSize         = 9.5
+    MessageFont       = 'Malgun Gothic'
+    MessageSize       = 13
+    DetailSize        = 9.5
+}
+# =====================================================================
+
 try {
     $data = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
 
@@ -67,26 +90,26 @@ public class CardForm : Form {
     [CardForm]::SetProcessDPIAware() | Out-Null
     [Windows.Forms.Application]::EnableVisualStyles()
 
-    $accent = if ($data.event -eq 'Notification') { '#F59E0B' } else { '#22C55E' }
+    $accent = if ($data.event -eq 'Notification') { $Design.NotificationColor } else { $Design.StopColor }
     $accent = [Drawing.ColorTranslator]::FromHtml($accent)
-    $ink    = [Drawing.ColorTranslator]::FromHtml('#111827')
-    $muted  = [Drawing.ColorTranslator]::FromHtml('#6B7280')
-    $line   = [Drawing.ColorTranslator]::FromHtml('#E5E7EB')
+    $ink    = [Drawing.ColorTranslator]::FromHtml($Design.TextColor)
+    $muted  = [Drawing.ColorTranslator]::FromHtml($Design.SubTextColor)
+    $line   = [Drawing.ColorTranslator]::FromHtml($Design.BorderColor)
 
     $form = New-Object CardForm
     $form.FormBorderStyle = 'None'
-    $form.StartPosition = 'CenterScreen'
+    $form.StartPosition = 'Manual'
     $form.TopMost = $true
     $form.ShowInTaskbar = $false
-    $form.BackColor = [Drawing.Color]::White
+    $form.BackColor = [Drawing.ColorTranslator]::FromHtml($Design.Background)
     $form.KeyPreview = $true
 
     $g = $form.CreateGraphics(); $s = $g.DpiX / 96; $g.Dispose()
-    $pad = [int](22 * $s); $width = [int](380 * $s)
+    $pad = [int]($Design.Padding * $s); $width = [int]($Design.Width * $s)
 
     $title = New-Object Windows.Forms.Label
-    $title.Text = 'Claude Code'
-    $title.Font = New-Object Drawing.Font('Segoe UI Semibold', 9.5)
+    $title.Text = $Design.Title
+    $title.Font = New-Object Drawing.Font($Design.TitleFont, $Design.TitleSize)
     $title.ForeColor = $muted
     $title.AutoSize = $true
     $title.Location = New-Object Drawing.Point(($pad + [int](16 * $s)), $pad)
@@ -103,7 +126,7 @@ public class CardForm : Form {
 
     $msg = New-Object Windows.Forms.Label
     $msg.Text = $data.message
-    $msg.Font = New-Object Drawing.Font('Malgun Gothic', 13, [Drawing.FontStyle]::Bold)
+    $msg.Font = New-Object Drawing.Font($Design.MessageFont, $Design.MessageSize, [Drawing.FontStyle]::Bold)
     $msg.ForeColor = $ink
     $msg.AutoSize = $true
     $msg.MaximumSize = New-Object Drawing.Size(($width - 2 * $pad), 0)
@@ -114,7 +137,7 @@ public class CardForm : Form {
     if ($data.detail) {
         $det = New-Object Windows.Forms.Label
         $det.Text = $data.detail
-        $det.Font = New-Object Drawing.Font('Malgun Gothic', 9.5)
+        $det.Font = New-Object Drawing.Font($Design.MessageFont, $Design.DetailSize)
         $det.ForeColor = $muted
         $det.AutoSize = $true
         $det.MaximumSize = New-Object Drawing.Size(($width - 2 * $pad), 0)
@@ -124,8 +147,18 @@ public class CardForm : Form {
     }
     $form.ClientSize = New-Object Drawing.Size($width, ($bottom + $pad))
 
+    $area = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $gap = [int](24 * $s)
+    $x = $area.Left + [int](($area.Width - $form.Width) / 2)
+    $y = switch ($Design.Position) {
+        'TopCenter'   { $area.Top + $gap }
+        'BottomRight' { $x = $area.Right - $form.Width - $gap; $area.Bottom - $form.Height - $gap }
+        default       { $area.Top + [int](($area.Height - $form.Height) / 2) }
+    }
+    $form.Location = New-Object Drawing.Point($x, $y)
+
     # Rounded corners
-    $r = [int](14 * $s)
+    $r = [int]($Design.CornerRadius * $s)
     $path = New-Object Drawing.Drawing2D.GraphicsPath
     $w = $form.ClientSize.Width; $h = $form.ClientSize.Height
     $path.AddArc(0, 0, $r * 2, $r * 2, 180, 90)
@@ -152,6 +185,13 @@ public class CardForm : Form {
     $form.Add_Click({ $form.Close() })
     foreach ($c in @($title, $msg) + @($form.Controls | Where-Object { $_ -ne $close })) { $c.Add_Click({ $form.Close() }) }
     $form.Add_KeyDown({ if ($_.KeyCode -in 'Escape', 'Enter') { $form.Close() } })
+
+    if ($Design.AutoCloseSeconds -gt 0) {
+        $timer = New-Object Windows.Forms.Timer
+        $timer.Interval = [int]($Design.AutoCloseSeconds * 1000)
+        $timer.Add_Tick({ $timer.Stop(); $form.Close() })
+        $timer.Start()
+    }
 
     [void]$form.ShowDialog()
 } catch {}

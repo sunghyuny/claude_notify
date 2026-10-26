@@ -104,6 +104,70 @@ C:\Users\<사용자명>\.claude\claude-notify\
 - 경로에는 `/`를 쓰는 것을 권장합니다. `\`를 쓰려면 `\\`처럼 두 번 써야 합니다.
 - 설정 파일이 잘못되어도 알림은 기본 문구와 기본 소리로 계속 동작합니다.
 
+## 직접 수정하기
+
+고칠 곳은 두 군데뿐입니다.
+
+| 누가 | 파일 | 바꿀 수 있는 것 |
+|---|---|---|
+| **사용자** | `C:\Users\<사용자명>\.claude\claude-notify\config.json` | 알림 문구, 소리(파일 또는 링크) |
+| **코드를 고쳐 쓰는 사람** | `scripts/notify-popup.ps1` 맨 위 `Design` 블록 | 카드 크기·색·글꼴·위치, 자동으로 닫히는 시간 |
+
+### 사용자: `config.json`
+
+플러그인을 업데이트해도 그대로 남는 내 설정입니다. 자세한 내용은 위의 [소리와 문구 바꾸기](#소리와-문구-바꾸기)를 보세요.
+
+| 항목 | 설명 | 예시 |
+|---|---|---|
+| `Stop.message` | 답변 완료 알림 문구 | `"답변이 완료되었습니다"` |
+| `Stop.sound` | 답변 완료 소리 | `"sounds/done.wav"`, 링크 |
+| `Notification.message` | 승인·입력 대기 알림 문구 | `"Claude가 확인을 기다립니다"` |
+| `Notification.sound` | 승인·입력 대기 소리 | `"sounds/attention.mp3"`, 링크 |
+
+### 코드를 고쳐 쓰는 사람: `scripts/notify-popup.ps1`
+
+이 저장소를 포크해서 카드 모양을 바꾸려면 파일 맨 위의 `Design` 블록만 고치면 됩니다.
+
+```powershell
+$Design = @{
+    Width             = 380            # 카드 너비
+    Padding           = 22             # 안쪽 여백
+    CornerRadius      = 14             # 모서리 둥글기
+    Position          = 'Center'       # Center | TopCenter | BottomRight
+    AutoCloseSeconds  = 0              # 0이면 직접 닫을 때까지 유지
+    Title             = 'Claude Code'  # 카드 맨 위 제목
+    Background        = '#FFFFFF'      # 배경색
+    TextColor         = '#111827'      # 본문 글자색
+    SubTextColor      = '#6B7280'      # 회색 글자색
+    BorderColor       = '#E5E7EB'      # 테두리색
+    StopColor         = '#22C55E'      # 답변 완료 점 색
+    NotificationColor = '#F59E0B'      # 승인·입력 대기 점 색
+    TitleFont         = 'Segoe UI Semibold'
+    TitleSize         = 9.5
+    MessageFont       = 'Malgun Gothic'
+    MessageSize       = 13
+    DetailSize        = 9.5
+}
+```
+
+그 밖의 동작을 바꾸려면 아래를 보세요.
+
+| 바꾸고 싶은 것 | 위치 |
+|---|---|
+| 기본 문구, 기본 소리(소리를 지정하지 않았을 때) | `scripts/notify.ps1`의 `$defaults` |
+| 처음 설치할 때 만들어지는 `config.json` 내용 | `scripts/config.template.json` |
+| 알림을 띄울 상황(예: 서브에이전트 완료 `SubagentStop` 추가) | `hooks/hooks.json` |
+| 플러그인 이름, 버전, 설명 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` |
+
+`.ps1` 파일은 반드시 **UTF-8 (BOM 포함)** 으로 저장하세요. BOM이 없으면 한글이 깨집니다. VS Code에서는 오른쪽 아래 인코딩 표시를 눌러 `Save with Encoding` → `UTF-8 with BOM`을 고르면 됩니다.
+
+고친 뒤에는 Claude 없이 바로 확인할 수 있습니다.
+
+```powershell
+'{"hook_event_name":"Stop","cwd":"C:\\test\\demo"}' | powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\notify.ps1
+'{"hook_event_name":"Notification","message":"Claude needs your permission to use Bash","cwd":"C:\\test\\demo"}' | powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\notify.ps1
+```
+
 ## 사용법
 
 설치 후에는 따로 할 일이 없습니다. Claude Code를 평소처럼 쓰면 됩니다.
