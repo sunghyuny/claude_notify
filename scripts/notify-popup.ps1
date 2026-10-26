@@ -15,6 +15,10 @@ $Design = @{
     BorderColor       = '#E5E7EB'
     StopColor         = '#22C55E'      # dot color: response finished
     NotificationColor = '#F59E0B'      # dot color: waiting for approval/input
+    WarningColor      = '#DC2626'      # "확인 필요" section
+    ReviewWidth       = 460            # card width when changed files / warnings are shown
+    MaxFiles          = 6              # longer lists end with "외 N개"
+    CodeFont          = 'Consolas'     # file paths
     TitleFont         = 'Segoe UI Semibold'
     TitleSize         = 9.5
     MessageFont       = 'Malgun Gothic'
@@ -75,6 +79,15 @@ try {
     }
     if (-not $played) { [System.Media.SystemSounds]::Exclamation.Play() }
 
+    $review = $null
+    if ($data.review) {
+        try {
+            . (Join-Path $PSScriptRoot 'review.ps1')
+            $review = Get-Review $data.transcript $data.cwd $data.showFiles $data.checkSecurity
+        } catch {}
+    }
+    $hasReview = $review -and ($review.Files.Count -or $review.Warnings.Count)
+
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
     # Borderless form with a native drop shadow (CS_DROPSHADOW), plus crisp text on high-DPI screens.
     Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition @"
@@ -105,7 +118,8 @@ public class CardForm : Form {
     $form.KeyPreview = $true
 
     $g = $form.CreateGraphics(); $s = $g.DpiX / 96; $g.Dispose()
-    $pad = [int]($Design.Padding * $s); $width = [int]($Design.Width * $s)
+    $pad = [int]($Design.Padding * $s)
+    $width = [int]($(if ($hasReview) { $Design.ReviewWidth } else { $Design.Width }) * $s)
 
     $title = New-Object Windows.Forms.Label
     $title.Text = $Design.Title
@@ -144,6 +158,45 @@ public class CardForm : Form {
         $det.Location = New-Object Drawing.Point($pad, ($bottom + [int](8 * $s)))
         $form.Controls.Add($det)
         $bottom = $det.Bottom
+    }
+
+    # Changed files and security warnings, stacked under the message.
+    function Add-Line([string]$text, $font, $color, [int]$gap, [int]$indent = 0) {
+        $l = New-Object Windows.Forms.Label
+        $l.Text = $text
+        $l.Font = $font
+        $l.ForeColor = $color
+        $l.AutoSize = $true
+        $l.UseMnemonic = $false
+        $l.MaximumSize = New-Object Drawing.Size(($width - 2 * $pad - $indent), 0)
+        $l.Location = New-Object Drawing.Point(($pad + $indent), ($script:bottom + [int]($gap * $s)))
+        $form.Controls.Add($l)
+        $script:bottom = $l.Bottom
+    }
+    if ($hasReview) {
+        $headFont = New-Object Drawing.Font($Design.MessageFont, $Design.DetailSize, [Drawing.FontStyle]::Bold)
+        $codeFont = New-Object Drawing.Font($Design.CodeFont, $Design.DetailSize)
+        $textFont = New-Object Drawing.Font($Design.MessageFont, $Design.DetailSize)
+        $indent = [int](10 * $s)
+        $warn = [Drawing.ColorTranslator]::FromHtml($Design.WarningColor)
+
+        if ($review.Warnings.Count) {
+            Add-Line "$([char]0x26A0) 확인 필요 $($review.Warnings.Count)건" $headFont $warn 16
+            foreach ($w in @($review.Warnings | Select-Object -First $Design.MaxFiles)) {
+                Add-Line $w.Text $codeFont $ink 6 $indent
+                Add-Line "$([char]0x2192) $($w.Hint)" $textFont $muted 1 $indent
+            }
+            $rest = $review.Warnings.Count - $Design.MaxFiles
+            if ($rest -gt 0) { Add-Line "외 $rest건" $textFont $muted 3 $indent }
+        }
+        if ($review.Files.Count) {
+            Add-Line "수정한 파일 $($review.Files.Count)개" $headFont $muted 16
+            foreach ($f in @($review.Files | Select-Object -First $Design.MaxFiles)) {
+                Add-Line "$($f.Mark) $($f.Path)" $codeFont $ink 3 $indent
+            }
+            $rest = $review.Files.Count - $Design.MaxFiles
+            if ($rest -gt 0) { Add-Line "외 $rest개" $textFont $muted 3 $indent }
+        }
     }
     $form.ClientSize = New-Object Drawing.Size($width, ($bottom + $pad))
 

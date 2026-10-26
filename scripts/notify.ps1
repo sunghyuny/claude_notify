@@ -1,11 +1,12 @@
 ﻿# claude-notify hook entry point (Stop / Notification).
 # User settings live in %USERPROFILE%\.claude\claude-notify\ so they survive plugin updates.
 try {
-    $event = 'Stop'; $project = ''; $hookMessage = ''
+    $event = 'Stop'; $project = ''; $hookMessage = ''; $cwd = ''; $transcript = ''
     try {
         $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
         if ($data.hook_event_name) { $event = $data.hook_event_name }
-        if ($data.cwd) { $project = Split-Path -Leaf $data.cwd }
+        if ($data.cwd) { $cwd = $data.cwd; $project = Split-Path -Leaf $data.cwd }
+        if ($data.transcript_path) { $transcript = $data.transcript_path }
         if ($data.message) { $hookMessage = $data.message }
     } catch {}
 
@@ -25,10 +26,14 @@ try {
 
     $message = $defaults[$event].message
     $sound = ''
+    $showFiles = $true; $checkSecurity = $true
     try {
-        $entry = (Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json).$event
+        $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $entry = $config.$event
         if ($entry.message) { $message = $entry.message }
         if ($entry.sound) { $sound = $entry.sound }
+        if ($null -ne $config.Review.changedFiles) { $showFiles = [bool]$config.Review.changedFiles }
+        if ($null -ne $config.Review.security) { $checkSecurity = [bool]$config.Review.security }
     } catch {}
 
     # A sound is either a link (downloaded and cached by notify-popup.ps1) or a file path.
@@ -47,6 +52,9 @@ try {
     $payload = @{
         event = $event; message = $message; detail = ($detail -join "`n")
         sound = $sound; fallback = $defaults[$event].sound; cache = (Join-Path $userDir 'cache')
+        # Only the Stop card shows what changed; the popup process does the (slower) analysis.
+        review = ($event -eq 'Stop' -and ($showFiles -or $checkSecurity))
+        transcript = $transcript; cwd = $cwd; showFiles = $showFiles; checkSecurity = $checkSecurity
     } | ConvertTo-Json -Compress
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payload))
 

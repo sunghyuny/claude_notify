@@ -3,12 +3,23 @@
 Claude Code가 **답변을 끝냈을 때**나 **승인·입력을 기다릴 때** 원하는 소리와 함께 화면 중앙에 알림 카드를 띄워 주는 Windows용 플러그인입니다. 다른 창에서 일하고 있어도 Claude가 끝났는지 바로 알 수 있습니다.
 
 ```
-┌──────────────────────────────┐
-│ ● Claude Code              ✕ │
-│                              │
-│ 답변이 완료되었습니다         │
-│ my-project                   │
-└──────────────────────────────┘
+┌──────────────────────────────────────────┐
+│ ● Claude Code                          ✕ │
+│                                          │
+│ 답변이 완료되었습니다                     │
+│ my-project                               │
+│                                          │
+│ ⚠ 확인 필요 2건                           │
+│   src\config.py:2  Anthropic/OpenAI 키    │
+│   → 코드에 직접 들어 있습니다. .env로 …    │
+│   .env  .gitignore에 없음                 │
+│   → 깃헙에 올라갈 수 있습니다. …           │
+│                                          │
+│ 수정한 파일 3개                            │
+│   + src\config.py                        │
+│   + .env                                 │
+│   ~ src\app.py                           │
+└──────────────────────────────────────────┘
 ```
 
 ## 기능
@@ -16,6 +27,11 @@ Claude Code가 **답변을 끝냈을 때**나 **승인·입력을 기다릴 때*
 - **두 가지 상황에서 알림**
   - 답변 완료: 초록 점
   - 승인·입력 대기: 주황 점. Claude가 무엇을 기다리는지도 함께 표시됩니다(예: `Claude needs your permission to use Bash`).
+- **수정한 파일 목록:** 답변이 끝나면 이번 답변에서 Claude가 만들거나 고친 파일을 보여 줍니다. `+`는 새 파일, `~`는 수정한 파일입니다.
+- **깃헙에 올라가면 안 되는 것 경고:** 답변이 끝날 때 아래를 검사해서 "확인 필요"로 빨갛게 표시합니다.
+  - 수정한 파일 안에 API 키, 토큰, 비밀번호, 개인 키가 코드에 직접 들어 있는 경우
+  - `.env`, `*.pem`, `*.key`, `credentials.json` 같은 파일이 `.gitignore`에 없는 경우
+  - 그런 파일이 이미 git에 포함된 경우 (`git rm --cached` 방법도 함께 알려 줍니다)
 - **원하는 소리 재생:** `.wav`, `.mp3` 파일을 지원합니다. 따로 넣지 않으면 윈도우 기본 소리가 납니다.
 - **팝업은 하나만:** 새 알림이 오면 이전 카드는 자동으로 닫힙니다.
 - **Claude를 막지 않음:** 카드를 닫지 않아도 Claude는 바로 다음 작업을 이어갑니다.
@@ -104,13 +120,48 @@ C:\Users\<사용자명>\.claude\claude-notify\
 - 경로에는 `/`를 쓰는 것을 권장합니다. `\`를 쓰려면 `\\`처럼 두 번 써야 합니다.
 - 설정 파일이 잘못되어도 알림은 기본 문구와 기본 소리로 계속 동작합니다.
 
+## 수정한 파일·보안 검사
+
+답변 완료 카드에는 이번 답변에서 Claude가 고친 파일과, 깃헙에 올리기 전에 직접 확인해야 할 것이 함께 표시됩니다. 아무것도 고치지 않았고 경고도 없으면 예전처럼 간단한 카드만 뜹니다.
+
+### 잡아내는 것
+
+| 검사 | 대상 | 예시 |
+|---|---|---|
+| 코드에 직접 들어간 키 | 이번 답변에서 수정한 파일 | `sk-ant-…`, `sk-…`, `AKIA…`(AWS), `ghp_…`(GitHub), `AIza…`(Google), `xoxb-…`(Slack), `-----BEGIN PRIVATE KEY-----`, `password = "…"` |
+| `.gitignore`에 없는 민감한 파일 | 프로젝트 전체 (git 저장소일 때) | `.env`, `.env.local`, `*.pem`, `*.key`, `*.p12`, `id_rsa`, `credentials.json` |
+| 이미 git에 포함된 민감한 파일 | 프로젝트 전체 (git 저장소일 때) | 위와 같음 |
+
+### 경고하지 않는 것
+
+- `YOUR_API_KEY`, `xxxx`, `<토큰>`, `${API_KEY}`처럼 자리표시자로 보이는 값
+- `os.environ[...]`, `process.env...`, `getenv(...)`처럼 환경 변수에서 읽는 코드
+- `.env.example`, `.env.sample`, `.env.template` 파일
+- `.env` 파일 안의 키 (키는 원래 `.env`에 두는 게 맞으므로, `.env`는 `.gitignore`에 있는지만 검사합니다)
+
+### 한계
+
+- **목록에 안 잡히는 파일:** 수정한 파일 목록은 Claude가 파일 편집 도구로 고친 파일만 보여 줍니다. 터미널 명령으로 만든 파일은 목록에 나오지 않습니다. 단, `.gitignore` 검사는 프로젝트 전체를 보기 때문에 그런 파일도 잡아냅니다.
+- **패턴 검사의 한계:** 키는 정해진 패턴으로만 찾으므로 모든 비밀 정보를 찾아내지는 못합니다. 올리기 전에 `git diff`로 한 번 더 확인하세요.
+
+### 끄기
+
+`config.json`의 `Review`에서 켜고 끌 수 있습니다.
+
+```json
+"Review": {
+  "changedFiles": true,
+  "security": true
+}
+```
+
 ## 직접 수정하기
 
 고칠 곳은 두 군데뿐입니다.
 
 | 누가 | 파일 | 바꿀 수 있는 것 |
 |---|---|---|
-| **사용자** | `C:\Users\<사용자명>\.claude\claude-notify\config.json` | 알림 문구, 소리(파일 또는 링크) |
+| **사용자** | `C:\Users\<사용자명>\.claude\claude-notify\config.json` | 알림 문구, 소리(파일 또는 링크), 수정 파일·보안 검사 켜고 끄기 |
 | **코드를 고쳐 쓰는 사람** | `scripts/notify-popup.ps1` 맨 위 `Design` 블록 | 카드 크기·색·글꼴·위치, 자동으로 닫히는 시간 |
 
 ### 사용자: `config.json`
@@ -123,6 +174,10 @@ C:\Users\<사용자명>\.claude\claude-notify\
 | `Stop.sound` | 답변 완료 소리 | `"sounds/done.wav"`, 링크 |
 | `Notification.message` | 승인·입력 대기 알림 문구 | `"Claude가 확인을 기다립니다"` |
 | `Notification.sound` | 승인·입력 대기 소리 | `"sounds/attention.mp3"`, 링크 |
+| `Review.changedFiles` | 수정한 파일 목록 표시 | `true` / `false` |
+| `Review.security` | 키·`.env` 보안 검사 | `true` / `false` |
+
+처음 설치했을 때 `config.json`에 `Review`가 없으면 둘 다 켜진 것으로 동작합니다.
 
 ### 코드를 고쳐 쓰는 사람: `scripts/notify-popup.ps1`
 
@@ -142,6 +197,10 @@ $Design = @{
     BorderColor       = '#E5E7EB'      # 테두리색
     StopColor         = '#22C55E'      # 답변 완료 점 색
     NotificationColor = '#F59E0B'      # 승인·입력 대기 점 색
+    WarningColor      = '#DC2626'      # "확인 필요" 제목 색
+    ReviewWidth       = 460            # 수정 파일·경고가 있을 때 카드 너비
+    MaxFiles          = 6              # 이보다 많으면 "외 N개"로 줄임
+    CodeFont          = 'Consolas'     # 파일 경로 글꼴
     TitleFont         = 'Segoe UI Semibold'
     TitleSize         = 9.5
     MessageFont       = 'Malgun Gothic'
@@ -156,6 +215,7 @@ $Design = @{
 |---|---|
 | 기본 문구, 기본 소리(소리를 지정하지 않았을 때) | `scripts/notify.ps1`의 `$defaults` |
 | 처음 설치할 때 만들어지는 `config.json` 내용 | `scripts/config.template.json` |
+| 찾아낼 키 패턴, 민감한 파일 이름, 경고 문구 | `scripts/review.ps1`의 `$patterns`, `$sensitive`, `Get-Review` |
 | 알림을 띄울 상황(예: 서브에이전트 완료 `SubagentStop` 추가) | `hooks/hooks.json` |
 | 플러그인 이름, 버전, 설명 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` |
 
