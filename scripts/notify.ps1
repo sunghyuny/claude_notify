@@ -31,9 +31,12 @@ try {
         if ($entry.sound) { $sound = $entry.sound }
     } catch {}
 
-    # Relative sound paths are resolved against the user folder; a missing file falls back to the default.
-    if ($sound -and -not [IO.Path]::IsPathRooted($sound)) { $sound = Join-Path $userDir $sound }
-    if (-not $sound -or -not (Test-Path -LiteralPath $sound)) { $sound = $defaults[$event].sound }
+    # A sound is either a link (downloaded and cached by notify-popup.ps1) or a file path.
+    # Relative paths are resolved against the user folder; a missing file falls back to the default.
+    if ($sound -notmatch '^https?://') {
+        if ($sound -and -not [IO.Path]::IsPathRooted($sound)) { $sound = Join-Path $userDir $sound }
+        if (-not $sound -or -not (Test-Path -LiteralPath $sound)) { $sound = $defaults[$event].sound }
+    }
 
     $detail = @()
     if ($hookMessage -and $event -ne 'Stop') { $detail += $hookMessage }
@@ -41,7 +44,10 @@ try {
 
     # Hand off to a detached process so the hook returns immediately instead of blocking
     # Claude until the popup is closed. Base64 avoids command-line quoting issues.
-    $payload = @{ event = $event; message = $message; detail = ($detail -join "`n"); sound = $sound } | ConvertTo-Json -Compress
+    $payload = @{
+        event = $event; message = $message; detail = ($detail -join "`n")
+        sound = $sound; fallback = $defaults[$event].sound; cache = (Join-Path $userDir 'cache')
+    } | ConvertTo-Json -Compress
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payload))
 
     # Keep only one popup on screen: close any earlier one before showing the new one.

@@ -3,15 +3,48 @@ param([string]$Payload)
 try {
     $data = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
 
+    # Turns a link into a local file, downloading it once into the cache folder.
+    # Accepts a direct audio link (.mp3/.wav) or a web page such as a myinstants.com sound page,
+    # in which case the page's og:audio tag (or its first audio link) is used.
+    function Get-CachedSound([string]$url, [string]$cacheDir) {
+        $sha = [Security.Cryptography.SHA1]::Create()
+        $hash = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($url)) | ForEach-Object { $_.ToString('x2') })
+        $cached = Get-ChildItem -LiteralPath $cacheDir -Filter "$hash.*" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($cached) { return $cached.FullName }
+
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        $audio = $url
+        if ($url -notmatch '\.(mp3|wav)(\?|$)') {
+            $html = (Invoke-WebRequest -Uri $url -UseBasicParsing -UserAgent $ua -TimeoutSec 15).Content
+            if ($html -match '<meta[^>]+property="og:audio"[^>]+content="([^"]+)"') { $audio = $Matches[1] }
+            elseif ($html -match '["'']([^"''\s]+\.(?:mp3|wav))["'']') { $audio = $Matches[1] }
+            else { return $null }
+            $audio = ([Uri]::new([Uri]$url, $audio)).AbsoluteUri
+        }
+        $ext = if ($audio -match '\.wav(\?|$)') { '.wav' } else { '.mp3' }
+        New-Item -ItemType Directory -Force $cacheDir | Out-Null
+        $target = Join-Path $cacheDir "$hash$ext"
+        Invoke-WebRequest -Uri $audio -UseBasicParsing -UserAgent $ua -TimeoutSec 30 -OutFile "$target.part"
+        Move-Item -Force "$target.part" $target
+        return $target
+    }
+
+    $sound = $data.sound
+    if ($sound -match '^https?://') {
+        try { $sound = Get-CachedSound $sound $data.cache } catch { $sound = $null }
+    }
+    if (-not $sound -or -not (Test-Path -LiteralPath $sound)) { $sound = $data.fallback }
+
     $played = $false
-    if ($data.sound -and (Test-Path -LiteralPath $data.sound)) {
+    if ($sound -and (Test-Path -LiteralPath $sound)) {
         try {
-            if ([IO.Path]::GetExtension($data.sound) -eq '.wav') {
-                $player = New-Object System.Media.SoundPlayer $data.sound
+            if ([IO.Path]::GetExtension($sound) -eq '.wav') {
+                $player = New-Object System.Media.SoundPlayer $sound
                 $player.Play()
             } else {
                 $player = New-Object -ComObject WMPlayer.OCX
-                $player.URL = $data.sound
+                $player.URL = $sound
                 $player.controls.play()
             }
             $played = $true
